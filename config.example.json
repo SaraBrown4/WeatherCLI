@@ -1,0 +1,5 @@
+{
+  "apiKey": "your_openweathermap_api_key_here",
+  "defaultUnits": "celsius",
+  "defaultCity": "London"
+}
