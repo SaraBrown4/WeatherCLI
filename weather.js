@@ -1,8 +1,34 @@
 #!/usr/bin/env node
 
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 
 console.log('WeatherCLI v1.0.0');
+
+function loadConfig() {
+    const configPath = path.join(__dirname, 'config.json');
+    
+    if (!fs.existsSync(configPath)) {
+        console.log('No config.json found. Using default settings.');
+        console.log('Copy config.example.json to config.json and add your API key.');
+        return {
+            apiKey: 'demo',
+            defaultUnits: 'celsius',
+            defaultCity: null
+        };
+    }
+    
+    try {
+        const configData = fs.readFileSync(configPath, 'utf8');
+        return JSON.parse(configData);
+    } catch (error) {
+        console.error('Error reading config file:', error.message);
+        process.exit(1);
+    }
+}
+
+const config = loadConfig();
 
 function parseArgs() {
     const args = process.argv.slice(2);
@@ -33,9 +59,13 @@ async function getWeather(cityName, temperatureUnits) {
     try {
         console.log(`Getting weather for ${cityName}...`);
         
-        const apiKey = 'demo'; // placeholder for now
+        const apiKey = config.apiKey || 'demo';
         const unitSystem = temperatureUnits === 'fahrenheit' ? 'imperial' : 'metric';
         const url = `https://api.openweathermap.org/data/2.5/weather?q=${cityName}&appid=${apiKey}&units=${unitSystem}`;
+        
+        if (apiKey === 'demo') {
+            console.log('Using demo mode (no real API key configured)');
+        }
         
         // For demo purposes, simulate API response
         console.log('Weather data retrieved successfully!');
