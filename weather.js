@@ -47,10 +47,32 @@ function parseArgs() {
     }
     
     const city = args[0];
-    const unitsIndex = args.findIndex(arg => arg === '--units' || arg === '-u');
-    const units = unitsIndex !== -1 && args[unitsIndex + 1] ? args[unitsIndex + 1] : 'celsius';
+    if (!city || city.trim() === '') {
+        console.error('Error: City name cannot be empty');
+        process.exit(1);
+    }
     
-    return { city, units };
+    const unitsIndex = args.findIndex(arg => arg === '--units' || arg === '-u');
+    let units = 'celsius';
+    
+    if (unitsIndex !== -1) {
+        const providedUnits = args[unitsIndex + 1];
+        if (!providedUnits) {
+            console.error('Error: --units option requires a value (celsius/fahrenheit)');
+            process.exit(1);
+        }
+        
+        if (!['celsius', 'fahrenheit', 'c', 'f'].includes(providedUnits.toLowerCase())) {
+            console.error('Error: Invalid units. Use "celsius" or "fahrenheit"');
+            process.exit(1);
+        }
+        
+        units = providedUnits.toLowerCase() === 'f' ? 'fahrenheit' : 
+                providedUnits.toLowerCase() === 'c' ? 'celsius' : 
+                providedUnits.toLowerCase();
+    }
+    
+    return { city: city.trim(), units };
 }
 
 const { city, units } = parseArgs();
