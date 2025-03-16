@@ -85,24 +85,64 @@ async function getWeather(cityName, temperatureUnits) {
         const unitSystem = temperatureUnits === 'fahrenheit' ? 'imperial' : 'metric';
         const url = `https://api.openweathermap.org/data/2.5/weather?q=${cityName}&appid=${apiKey}&units=${unitSystem}`;
         
-        if (apiKey === 'demo') {
+        if (apiKey === 'demo' || apiKey === 'your_openweathermap_api_key_here') {
             console.log('Using demo mode (no real API key configured)');
+            showDemoData(cityName, temperatureUnits);
+            return;
         }
         
-        // For demo purposes, simulate API response
+        const response = await axios.get(url);
+        const weatherData = response.data;
+        
         console.log('Weather data retrieved successfully!');
-        console.log(`City: ${cityName}`);
-        
-        const tempSymbol = temperatureUnits === 'fahrenheit' ? '°F' : '°C';
-        const tempValue = temperatureUnits === 'fahrenheit' ? '72' : '22';
-        
-        console.log(`Temperature: ${tempValue}${tempSymbol}`);
-        console.log('Condition: Sunny');
-        console.log('Humidity: 65%');
+        console.log(`\nWeather in ${weatherData.name}, ${weatherData.sys.country}:`);
+        console.log(`Temperature: ${Math.round(weatherData.main.temp)}°${temperatureUnits === 'fahrenheit' ? 'F' : 'C'}`);
+        console.log(`Feels like: ${Math.round(weatherData.main.feels_like)}°${temperatureUnits === 'fahrenheit' ? 'F' : 'C'}`);
+        console.log(`Condition: ${weatherData.weather[0].description}`);
+        console.log(`Humidity: ${weatherData.main.humidity}%`);
+        console.log(`Wind Speed: ${weatherData.wind.speed} ${unitSystem === 'imperial' ? 'mph' : 'm/s'}`);
         
     } catch (error) {
-        console.error('Error fetching weather data:', error.message);
+        if (error.response) {
+            const status = error.response.status;
+            const message = error.response.data.message || 'Unknown error';
+            
+            switch (status) {
+                case 401:
+                    console.error('Error: Invalid API key. Please check your config.json file.');
+                    break;
+                case 404:
+                    console.error(`Error: City "${cityName}" not found. Please check the spelling.`);
+                    break;
+                case 429:
+                    console.error('Error: Too many requests. Please try again later.');
+                    break;
+                default:
+                    console.error(`Error: ${message} (Status: ${status})`);
+            }
+        } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+            console.error('Error: Unable to connect to weather service. Check your internet connection.');
+        } else {
+            console.error('Error fetching weather data:', error.message);
+        }
+        process.exit(1);
     }
+}
+
+function showDemoData(cityName, temperatureUnits) {
+    console.log('Weather data retrieved successfully!');
+    console.log(`\nWeather in ${cityName}:`);
+    
+    const tempSymbol = temperatureUnits === 'fahrenheit' ? '°F' : '°C';
+    const tempValue = temperatureUnits === 'fahrenheit' ? '72' : '22';
+    const feelsLike = temperatureUnits === 'fahrenheit' ? '75' : '24';
+    const windSpeed = temperatureUnits === 'fahrenheit' ? '8 mph' : '3.6 m/s';
+    
+    console.log(`Temperature: ${tempValue}${tempSymbol}`);
+    console.log(`Feels like: ${feelsLike}${tempSymbol}`);
+    console.log('Condition: partly cloudy');
+    console.log('Humidity: 65%');
+    console.log(`Wind Speed: ${windSpeed}`);
 }
 
 getWeather(city, units);
