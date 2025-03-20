@@ -37,8 +37,9 @@ function parseArgs() {
         console.log('Usage: node weather.js <city> [options]');
         console.log('');
         console.log('Options:');
-        console.log('  --units, -u    Temperature units (celsius/fahrenheit)');
-        console.log('  --help, -h     Show help');
+        console.log('  --units, -u      Temperature units (celsius/fahrenheit)');
+        console.log('  --forecast, -f   Show 5-day forecast instead of current weather');
+        console.log('  --help, -h       Show help');
         console.log('');
         console.log('Examples:');
         console.log('  node weather.js London');
@@ -72,10 +73,12 @@ function parseArgs() {
                 providedUnits.toLowerCase();
     }
     
-    return { city: city.trim(), units };
+    const showForecast = args.includes('--forecast') || args.includes('-f');
+    
+    return { city: city.trim(), units, showForecast };
 }
 
-const { city, units } = parseArgs();
+const { city, units, showForecast } = parseArgs();
 
 async function getWeather(cityName, temperatureUnits) {
     try {
@@ -145,4 +148,94 @@ function showDemoData(cityName, temperatureUnits) {
     console.log(`Wind Speed: ${windSpeed}`);
 }
 
-getWeather(city, units);
+if (showForecast) {
+    getForecast(city, units);
+} else {
+    getWeather(city, units);
+}
+
+async function getForecast(cityName, temperatureUnits) {
+    try {
+        console.log(`Getting 5-day forecast for ${cityName}...`);
+        
+        const apiKey = config.apiKey || 'demo';
+        const unitSystem = temperatureUnits === 'fahrenheit' ? 'imperial' : 'metric';
+        const url = `https://api.openweathermap.org/data/2.5/forecast?q=${cityName}&appid=${apiKey}&units=${unitSystem}`;
+        
+        if (apiKey === 'demo' || apiKey === 'your_openweathermap_api_key_here') {
+            console.log('Using demo mode (no real API key configured)');
+            showDemoForecast(cityName, temperatureUnits);
+            return;
+        }
+        
+        const response = await axios.get(url);
+        const forecastData = response.data;
+        
+        console.log('Forecast data retrieved successfully!');
+        console.log(`\n5-Day Weather Forecast for ${forecastData.city.name}, ${forecastData.city.country}:\n`);
+        
+        const dailyForecasts = {};
+        forecastData.list.forEach(item => {
+            const date = new Date(item.dt * 1000).toDateString();
+            if (!dailyForecasts[date]) {
+                dailyForecasts[date] = item;
+            }
+        });
+        
+        Object.entries(dailyForecasts).slice(0, 5).forEach(([date, forecast]) => {
+            const temp = Math.round(forecast.main.temp);
+            const tempSymbol = temperatureUnits === 'fahrenheit' ? 'F' : 'C';
+            
+            console.log(`${date}:`);
+            console.log(`  Temperature: ${temp}°${tempSymbol}`);
+            console.log(`  Condition: ${forecast.weather[0].description}`);
+            console.log(`  Humidity: ${forecast.main.humidity}%`);
+            console.log('');
+        });
+        
+    } catch (error) {
+        if (error.response) {
+            const status = error.response.status;
+            const message = error.response.data.message || 'Unknown error';
+            
+            switch (status) {
+                case 401:
+                    console.error('Error: Invalid API key. Please check your config.json file.');
+                    break;
+                case 404:
+                    console.error(`Error: City "${cityName}" not found. Please check the spelling.`);
+                    break;
+                case 429:
+                    console.error('Error: Too many requests. Please try again later.');
+                    break;
+                default:
+                    console.error(`Error: ${message} (Status: ${status})`);
+            }
+        } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+            console.error('Error: Unable to connect to weather service. Check your internet connection.');
+        } else {
+            console.error('Error fetching forecast data:', error.message);
+        }
+        process.exit(1);
+    }
+}
+
+function showDemoForecast(cityName, temperatureUnits) {
+    console.log('Forecast data retrieved successfully!');
+    console.log(`\n5-Day Weather Forecast for ${cityName}:\n`);
+    
+    const tempSymbol = temperatureUnits === 'fahrenheit' ? 'F' : 'C';
+    const baseTemp = temperatureUnits === 'fahrenheit' ? 70 : 20;
+    
+    const days = ['Mon Mar 17 2025', 'Tue Mar 18 2025', 'Wed Mar 19 2025', 'Thu Mar 20 2025', 'Fri Mar 21 2025'];
+    const conditions = ['sunny', 'partly cloudy', 'light rain', 'cloudy', 'clear'];
+    
+    days.forEach((day, index) => {
+        const temp = baseTemp + (Math.random() * 10 - 5);
+        console.log(`${day}:`);
+        console.log(`  Temperature: ${Math.round(temp)}°${tempSymbol}`);
+        console.log(`  Condition: ${conditions[index]}`);
+        console.log(`  Humidity: ${Math.round(60 + Math.random() * 20)}%`);
+        console.log('');
+    });
+}
